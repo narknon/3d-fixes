@@ -924,16 +924,13 @@ def import_vertices(mesh, vb):
         # mapped back on export. Alternatively, you can alter the input
         # assembler layout format in the vb*.txt / *.fmt files prior to import.
         semantic_translations = {
-            'ATTRIBUTE': 'POSITION', # UE4
-            'ATTRIBUTE1': 'NORMAL', # UE4
-            'ATTRIBUTE2': 'TANGENT', # UE4
-            'ATTRIBUTE5': 'TEXCOORD', # UE4
-            'ATTRIBUTE6': 'TEXCOORD', # UE4
-            'ATTRIBUTE7': 'TEXCOORD', # UE4
-            'ATTRIBUTE8': 'TEXCOORD', # UE4
-            'ATTRIBUTE3': 'BLENDINDICES', # UE4
-            'ATTRIBUTE4': 'BLENDWEIGHT', # UE4
-           
+            'ATTRIBUTE1': 'NORMAL', # FF7R
+            'ATTRIBUTE2': 'TANGENT', # FF7R
+            'ATTRIBUTE': 'POSITION', # FF7R
+            'ATTRIBUTE5': 'TEXCOORD', # FF7R
+            'ATTRIBUTE6': 'TEXCOORD', # FF7R
+            'ATTRIBUTE7': 'TEXCOORD', # FF7R
+            'ATTRIBUTE8': 'TEXCOORD', # FF7R       
         }
         translated_elem_name = semantic_translations.get(elem.name, elem.name)
 
