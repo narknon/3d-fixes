@@ -5,11 +5,11 @@
 # addon supports both Blender 2.79 and 2.80. It will still work on 2.79, just
 # with a warning.
 bl_info = {
-    "name": "3DMigoto",
+    "name": "3DMigotoMulti7R",
     "blender": (2, 80, 0),
     "author": "Ian Munsie (darkstarsword@gmail.com)",
     "location": "File > Import-Export",
-    "description": "Imports meshes dumped with 3DMigoto's frame analysis and exports meshes suitable for re-injection",
+    "description": "FF7R - Imports meshes dumped with 3DMigoto's frame analysis and exports meshes suitable for re-injection",
     "category": "Import-Export",
     "tracker_url": "https://github.com/DarkStarSword/3d-fixes/issues",
 }
@@ -752,12 +752,8 @@ def load_3dmigoto_mesh(operator, paths):
     return vb, ib, os.path.basename(vb_paths[0][0]), pose_path
 
 def import_normals_step1(mesh, data):
-    # Ensure normals are 3-dimensional:
-    # XXX: Assertion triggers in DOA6
-    if len(data[0]) == 4:
-        if [x[3] for x in data] != [0.0]*len(data):
-            raise Fatal('Normals are 4D')
-    normals = [(x[0], x[1], x[2]) for x in data]
+
+    normals = [(x[0], x[1], x[2], x[3]) for x in data]
 
     # To make sure the normals don't get lost by Blender's edit mode,
     # or mesh.update() we need to set custom normals in the loops, not
@@ -928,7 +924,16 @@ def import_vertices(mesh, vb):
         # mapped back on export. Alternatively, you can alter the input
         # assembler layout format in the vb*.txt / *.fmt files prior to import.
         semantic_translations = {
-            #'ATTRIBUTE': 'POSITION', # UE4
+            'ATTRIBUTE': 'POSITION', # UE4
+            'ATTRIBUTE1': 'NORMAL', # UE4
+            'ATTRIBUTE2': 'TANGENT', # UE4
+            'ATTRIBUTE5': 'TEXCOORD', # UE4
+            'ATTRIBUTE6': 'TEXCOORD', # UE4
+            'ATTRIBUTE7': 'TEXCOORD', # UE4
+            'ATTRIBUTE8': 'TEXCOORD', # UE4
+            'ATTRIBUTE3': 'BLENDINDICES', # UE4
+            'ATTRIBUTE4': 'BLENDWEIGHT', # UE4
+           
         }
         translated_elem_name = semantic_translations.get(elem.name, elem.name)
 
@@ -1259,9 +1264,9 @@ def export_3dmigoto(operator, context, vb_path, ib_path, fmt_path):
     write_fmt_file(open(fmt_path, 'w'), vb, ib)
 
 @orientation_helper(axis_forward='-Z', axis_up='Y')
-class Import3DMigotoFrameAnalysis(bpy.types.Operator, ImportHelper, IOOBJOrientationHelper):
-    """Import a mesh dumped with 3DMigoto's frame analysis"""
-    bl_idname = "import_mesh.migoto_frame_analysis"
+class Import7r3DMigotoFrameAnalysis(bpy.types.Operator, ImportHelper, IOOBJOrientationHelper):
+    """7R Import a mesh dumped with 3DMigoto's frame analysis"""
+    bl_idname = "import_mesh.7rmigoto_frame_analysis"
     bl_label = "Import 3DMigoto Frame Analysis Dump"
     bl_options = {'PRESET', 'UNDO'}
 
@@ -1403,9 +1408,9 @@ def import_3dmigoto_raw_buffers(operator, context, vb_fmt_path, ib_fmt_path, vb_
         apply_vgmap(operator, context, targets=obj, filepath=vgmap_path, rename=True, cleanup=True)
 
 @orientation_helper(axis_forward='-Z', axis_up='Y')
-class Import3DMigotoRaw(bpy.types.Operator, ImportHelper, IOOBJOrientationHelper):
-    """Import raw 3DMigoto vertex and index buffers"""
-    bl_idname = "import_mesh.migoto_raw_buffers"
+class Import7r3DMigotoRaw(bpy.types.Operator, ImportHelper, IOOBJOrientationHelper):
+    """7R Import raw 3DMigoto vertex and index buffers"""
+    bl_idname = "import_mesh.7rmigoto_raw_buffers"
     bl_label = "Import 3DMigoto Raw Buffers"
     #bl_options = {'PRESET', 'UNDO'}
     bl_options = {'UNDO'}
@@ -1469,8 +1474,8 @@ class Import3DMigotoRaw(bpy.types.Operator, ImportHelper, IOOBJOrientationHelper
                 self.report({'ERROR'}, str(e))
         return {'FINISHED'}
 
-class Import3DMigotoReferenceInputFormat(bpy.types.Operator, ImportHelper):
-    bl_idname = "import_mesh.migoto_input_format"
+class Import7r3DMigotoReferenceInputFormat(bpy.types.Operator, ImportHelper):
+    bl_idname = "import_mesh.7rmigoto_input_format"
     bl_label = "Select a .txt file with matching format"
     bl_options = {'UNDO', 'INTERNAL'}
 
@@ -1510,9 +1515,9 @@ class Import3DMigotoReferenceInputFormat(bpy.types.Operator, ImportHelper):
             self.report({'ERROR'}, str(e))
         return {'FINISHED'}
 
-class Export3DMigoto(bpy.types.Operator, ExportHelper):
-    """Export a mesh for re-injection into a game with 3DMigoto"""
-    bl_idname = "export_mesh.migoto"
+class Export7r3DMigoto(bpy.types.Operator, ExportHelper):
+    """7R Export a mesh for re-injection into a game with 3DMigoto"""
+    bl_idname = "export_mesh.7rmigoto"
     bl_label = "Export 3DMigoto Vertex & Index Buffers"
 
     filename_ext = '.vb'
@@ -1593,9 +1598,9 @@ def update_vgmap(operator, context, vg_step=1):
                 operator.report({'INFO'}, 'Assigned named vertex group %s = %i' % (vg, vgmap[vg]))
             obj[suffix] = vgmap
 
-class ApplyVGMap(bpy.types.Operator, ImportHelper):
-    """Apply vertex group map to the selected object"""
-    bl_idname = "mesh.migoto_vertex_group_map"
+class Apply7rVGMap(bpy.types.Operator, ImportHelper):
+    """7R Apply vertex group map to the selected object"""
+    bl_idname = "mesh.7rmigoto_vertex_group_map"
     bl_label = "Apply 3DMigoto vgmap"
     bl_options = {'UNDO'}
 
@@ -1647,9 +1652,9 @@ class ApplyVGMap(bpy.types.Operator, ImportHelper):
             self.report({'ERROR'}, str(e))
         return {'FINISHED'}
 
-class UpdateVGMap(bpy.types.Operator):
-    """Assign new 3DMigoto vertex groups"""
-    bl_idname = "mesh.update_migoto_vertex_group_map"
+class Update7rVGMap(bpy.types.Operator):
+    """7R Assign new 3DMigoto vertex groups"""
+    bl_idname = "mesh.7rupdate_migoto_vertex_group_map"
     bl_label = "Assign new 3DMigoto vertex groups"
     bl_options = {'UNDO'}
 
@@ -1739,9 +1744,9 @@ def import_pose(operator, context, filepath=None, limit_bones_to_vertex_groups=T
         hide_set(arm, True)
 
 @orientation_helper(axis_forward='-Z', axis_up='Y')
-class Import3DMigotoPose(bpy.types.Operator, ImportHelper, IOOBJOrientationHelper):
-    """Import a pose from a 3DMigoto constant buffer dump"""
-    bl_idname = "armature.migoto_pose"
+class Import7r3DMigotoPose(bpy.types.Operator, ImportHelper, IOOBJOrientationHelper):
+    """7R Import a pose from a 3DMigoto constant buffer dump"""
+    bl_idname = "armature.7rmigoto_pose"
     bl_label = "Import 3DMigoto Pose"
     bl_options = {'UNDO'}
 
@@ -1861,9 +1866,9 @@ def merge_armatures(operator, context):
         src_obj.parent = target_arm
         unlink_object(context, src_arm)
 
-class Merge3DMigotoPose(bpy.types.Operator):
-    """Merge identically posed bones of related armatures into one"""
-    bl_idname = "armature.merge_pose"
+class Merge7r3DMigotoPose(bpy.types.Operator):
+    """7R Merge identically posed bones of related armatures into one"""
+    bl_idname = "armature.7rmerge_pose"
     bl_label = "Merge 3DMigoto Poses"
     bl_options = {'UNDO'}
 
@@ -1874,9 +1879,9 @@ class Merge3DMigotoPose(bpy.types.Operator):
             self.report({'ERROR'}, str(e))
         return {'FINISHED'}
 
-class DeleteNonNumericVertexGroups(bpy.types.Operator):
-    """Remove vertex groups with non-numeric names"""
-    bl_idname = "vertex_groups.delete_non_numeric"
+class DeleteNonNumeric7rVertexGroups(bpy.types.Operator):
+    """7R Remove vertex groups with non-numeric names"""
+    bl_idname = "vertex_groups.7rdelete_non_numeric"
     bl_label = "Remove non-numeric vertex groups"
     bl_options = {'UNDO'}
 
@@ -1892,31 +1897,31 @@ class DeleteNonNumericVertexGroups(bpy.types.Operator):
             self.report({'ERROR'}, str(e))
         return {'FINISHED'}
 
-def menu_func_import_fa(self, context):
-    self.layout.operator(Import3DMigotoFrameAnalysis.bl_idname, text="3DMigoto frame analysis dump (vb.txt + ib.txt)")
+def menu_func_import_7rfa(self, context):
+    self.layout.operator(Import3DMigotoFrameAnalysis.bl_idname, text="7R 3DMigoto frame analysis dump (vb.txt + ib.txt)")
 
-def menu_func_import_raw(self, context):
-    self.layout.operator(Import3DMigotoRaw.bl_idname, text="3DMigoto raw buffers (.vb + .ib)")
+def menu_func_import_7rraw(self, context):
+    self.layout.operator(Import3DMigotoRaw.bl_idname, text="7R 3DMigoto raw buffers (.vb + .ib)")
 
-def menu_func_import_pose(self, context):
-    self.layout.operator(Import3DMigotoPose.bl_idname, text="3DMigoto pose (.txt)")
+def menu_func_import_7rpose(self, context):
+    self.layout.operator(Import3DMigotoPose.bl_idname, text="7R 3DMigoto pose (.txt)")
 
-def menu_func_export(self, context):
-    self.layout.operator(Export3DMigoto.bl_idname, text="3DMigoto raw buffers (.vb + .ib)")
+def menu_func_7rexport(self, context):
+    self.layout.operator(Export3DMigoto.bl_idname, text="7R 3DMigoto raw buffers (.vb + .ib)")
 
-def menu_func_apply_vgmap(self, context):
-    self.layout.operator(ApplyVGMap.bl_idname, text="Apply 3DMigoto vertex group map to current object (.vgmap)")
+def menu_func_7rapply_vgmap(self, context):
+    self.layout.operator(ApplyVGMap.bl_idname, text="7R Apply 3DMigoto vertex group map to current object (.vgmap)")
 
 register_classes = (
-    Import3DMigotoFrameAnalysis,
-    Import3DMigotoRaw,
-    Import3DMigotoReferenceInputFormat,
-    Export3DMigoto,
-    ApplyVGMap,
-    UpdateVGMap,
-    Import3DMigotoPose,
-    Merge3DMigotoPose,
-    DeleteNonNumericVertexGroups,
+    Import7r3DMigotoFrameAnalysis,
+    Import7r3DMigotoRaw,
+    Import7r3DMigotoReferenceInputFormat,
+    Export7r3DMigoto,
+    Apply7rVGMap,
+    Update7rVGMap,
+    Import7r3DMigotoPose,
+    Merge7r3DMigotoPose,
+    DeleteNonNumeric7rVertexGroups,
 )
 
 def register():
@@ -1924,21 +1929,21 @@ def register():
         make_annotations(cls)
         bpy.utils.register_class(cls)
 
-    import_menu.append(menu_func_import_fa)
-    import_menu.append(menu_func_import_raw)
-    export_menu.append(menu_func_export)
-    import_menu.append(menu_func_apply_vgmap)
-    import_menu.append(menu_func_import_pose)
+    import_menu.append(menu_func_import_7rfa)
+    import_menu.append(menu_func_import_7rraw)
+    export_menu.append(menu_func_7rexport)
+    import_menu.append(menu_func_7rapply_vgmap)
+    import_menu.append(menu_func_import_7rpose)
 
 def unregister():
     for cls in reversed(register_classes):
         bpy.utils.unregister_class(cls)
 
-    import_menu.remove(menu_func_import_fa)
-    import_menu.remove(menu_func_import_raw)
-    export_menu.remove(menu_func_export)
-    import_menu.remove(menu_func_apply_vgmap)
-    import_menu.remove(menu_func_import_pose)
+    import_menu.remove(menu_func_import_7rfa)
+    import_menu.remove(menu_func_import_7rraw)
+    export_menu.remove(menu_func_7rexport)
+    import_menu.remove(menu_func_7rapply_vgmap)
+    import_menu.remove(menu_func_import_7rpose)
 
 if __name__ == "__main__":
     register()
