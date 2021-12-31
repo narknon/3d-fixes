@@ -1895,19 +1895,19 @@ class DeleteNonNumeric7rVertexGroups(bpy.types.Operator):
         return {'FINISHED'}
 
 def menu_func_import_7rfa(self, context):
-    self.layout.operator(Import3DMigotoFrameAnalysis.bl_idname, text="7R 3DMigoto frame analysis dump (vb.txt + ib.txt)")
+    self.layout.operator(Import7r3DMigotoFrameAnalysis.bl_idname, text="7R 3DMigoto frame analysis dump (vb.txt + ib.txt)")
 
 def menu_func_import_7rraw(self, context):
-    self.layout.operator(Import3DMigotoRaw.bl_idname, text="7R 3DMigoto raw buffers (.vb + .ib)")
+    self.layout.operator(Import7r3DMigotoRaw.bl_idname, text="7R 3DMigoto raw buffers (.vb + .ib)")
 
 def menu_func_import_7rpose(self, context):
-    self.layout.operator(Import3DMigotoPose.bl_idname, text="7R 3DMigoto pose (.txt)")
+    self.layout.operator(Import7r3DMigotoPose.bl_idname, text="7R 3DMigoto pose (.txt)")
 
 def menu_func_7rexport(self, context):
-    self.layout.operator(Export3DMigoto.bl_idname, text="7R 3DMigoto raw buffers (.vb + .ib)")
+    self.layout.operator(Export7r3DMigoto.bl_idname, text="7R 3DMigoto raw buffers (.vb + .ib)")
 
 def menu_func_7rapply_vgmap(self, context):
-    self.layout.operator(ApplyVGMap.bl_idname, text="7R Apply 3DMigoto vertex group map to current object (.vgmap)")
+    self.layout.operator(Apply7rVGMap.bl_idname, text="7R Apply 3DMigoto vertex group map to current object (.vgmap)")
 
 register_classes = (
     Import7r3DMigotoFrameAnalysis,
