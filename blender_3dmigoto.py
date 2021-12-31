@@ -1176,7 +1176,7 @@ def export_3dmigoto(operator, context, vb_path, ib_path, fmt_path):
         raise Fatal('No object selected')
 
     # FIXME: Per-vertex buffer strides
-    stride = obj['3DMigoto:VBStride']
+    stride = obj['3DMigoto:VB0Stride']
     layout = InputLayout(obj['3DMigoto:VBLayout'], stride=stride)
     if hasattr(context, "evaluated_depsgraph_get"): # 2.80
         mesh = obj.evaluated_get(context.evaluated_depsgraph_get()).to_mesh()
