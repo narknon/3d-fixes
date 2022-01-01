@@ -891,11 +891,12 @@ def load_3dmigoto_mesh(operator, paths):
     if use_bin[0]:
         return load_3dmigoto_mesh_bin(operator, vb_paths, ib_paths, pose_path)
 
-    vb0, vb2 = VertexBufferGroup(vb_paths[0])
+    vb0 = VertexBufferGroup(vb_paths[0])
+    vb2 = VertexBufferGroup(vb_paths[1])
     # Merge additional vertex buffers for meshes split over multiple draw calls:
-    for vb_path in vb_paths[1:]:
-        tmp = VertexBufferGroup(vb_path)
-        vb.merge(tmp)
+    #for vb_path in vb_paths[1:]:
+     #   tmp = VertexBufferGroup(vb_path)
+      #  vb.merge(tmp)
 
     # For quickly testing how importent any unsupported semantics may be:
     #vb.wipe_semantic_for_testing('POSITION.w', 1.0)
