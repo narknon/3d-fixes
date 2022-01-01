@@ -227,7 +227,9 @@ def format_size(fmt):
     matches = components_pattern.findall(fmt)
     return sum(map(int, matches)) // 8
 
-class InputLayoutElement(object):
+
+#### Input layout doubled by narknon
+class InputLayoutVB0Element(object):
     def __init__(self, arg):
         if isinstance(arg, io.IOBase):
             self.from_file(arg)
@@ -333,11 +335,122 @@ class InputLayoutElement(object):
             self.InputSlotClass == other.InputSlotClass and \
             self.InstanceDataStepRate == other.InstanceDataStepRate
 
-class InputLayout(object):
+
+
+##############   
+class InputLayoutVB2Element(object):
+    def __init__(self, arg):
+        if isinstance(arg, io.IOBase):
+            self.from_file(arg)
+        else:
+            self.from_dict(arg)
+
+        self.encoder, self.decoder = EncoderDecoder(self.Format)
+
+    def from_file(self, f):
+        self.SemanticName = self.next_validate(f, 'SemanticName')
+        self.SemanticIndex = int(self.next_validate(f, 'SemanticIndex'))
+        self.Format = self.next_validate(f, 'Format')
+        self.InputSlot = int(self.next_validate(f, 'InputSlot'))
+        self.AlignedByteOffset = self.next_validate(f, 'AlignedByteOffset')
+        if self.AlignedByteOffset == 'append':
+            raise Fatal('Input layouts using "AlignedByteOffset=append" are not yet supported')
+        self.AlignedByteOffset = int(self.AlignedByteOffset)
+        self.InputSlotClass = self.next_validate(f, 'InputSlotClass')
+        self.InstanceDataStepRate = int(self.next_validate(f, 'InstanceDataStepRate'))
+
+    def to_dict(self):
+        d = {}
+        d['SemanticName'] = self.SemanticName
+        d['SemanticIndex'] = self.SemanticIndex
+        d['Format'] = self.Format
+        d['InputSlot'] = self.InputSlot
+        d['AlignedByteOffset'] = self.AlignedByteOffset
+        d['InputSlotClass'] = self.InputSlotClass
+        d['InstanceDataStepRate'] = self.InstanceDataStepRate
+        return d
+
+    def to_string(self, indent=2):
+        return textwrap.indent(textwrap.dedent('''
+            SemanticName: %s
+            SemanticIndex: %i
+            Format: %s
+            InputSlot: %i
+            AlignedByteOffset: %i
+            InputSlotClass: %s
+            InstanceDataStepRate: %i
+        ''').lstrip() % (
+            self.SemanticName,
+            self.SemanticIndex,
+            self.Format,
+            self.InputSlot,
+            self.AlignedByteOffset,
+            self.InputSlotClass,
+            self.InstanceDataStepRate,
+        ), ' '*indent)
+
+    def from_dict(self, d):
+        self.SemanticName = d['SemanticName']
+        self.SemanticIndex = d['SemanticIndex']
+        self.Format = d['Format']
+        self.InputSlot = d['InputSlot']
+        self.AlignedByteOffset = d['AlignedByteOffset']
+        self.InputSlotClass = d['InputSlotClass']
+        self.InstanceDataStepRate = d['InstanceDataStepRate']
+
+    @staticmethod
+    def next_validate(f, field):
+        line = next(f).strip()
+        assert(line.startswith(field + ': '))
+        return line[len(field) + 2:]
+
+    @property
+    def name(self):
+        if self.SemanticIndex:
+            return '%s%i' % (self.SemanticName, self.SemanticIndex)
+        return self.SemanticName
+
+    def pad(self, data, val):
+        padding = format_components(self.Format) - len(data)
+        assert(padding >= 0)
+        return data + [val]*padding
+
+    def clip(self, data):
+        return data[:format_components(self.Format)]
+
+    def size(self):
+        return format_size(self.Format)
+
+    def is_float(self):
+        return misc_float_pattern.match(self.Format)
+
+    def is_int(self):
+        return misc_int_pattern.match(self.Format)
+
+    def encode(self, data):
+        # print(self.Format, data)
+        return self.encoder(data)
+
+    def decode(self, data):
+        return self.decoder(data)
+
+    def __eq__(self, other):
+        return \
+            self.SemanticName == other.SemanticName and \
+            self.SemanticIndex == other.SemanticIndex and \
+            self.Format == other.Format and \
+            self.InputSlot == other.InputSlot and \
+            self.AlignedByteOffset == other.AlignedByteOffset and \
+            self.InputSlotClass == other.InputSlotClass and \
+            self.InstanceDataStepRate == other.InstanceDataStepRate
+            
+#######################
+
+class InputLayoutVB0(object):
     def __init__(self, custom_prop=[]):
         self.elems = collections.OrderedDict()
         for item in custom_prop:
-            elem = InputLayoutElement(item)
+            elem = InputLayoutVB0Element(item)
             self.elems[elem.name] = elem
 
     def serialise(self):
@@ -351,7 +464,7 @@ class InputLayout(object):
         return ret
 
     def parse_element(self, f):
-        elem = InputLayoutElement(f)
+        elem = InputLayoutVB0Element(f)
         self.elems[elem.name] = elem
 
     def __iter__(self):
@@ -370,7 +483,58 @@ class InputLayout(object):
             data = elem.encode(data)
             buf[elem.AlignedByteOffset:elem.AlignedByteOffset + len(data)] = data
 
-        assert(len(buf) == stride)
+        assert(len(buf) == stridevb0)
+        return buf
+
+    def decode(self, buf):
+        vertex = {}
+        for elem in self.elems.values():
+            data = buf[elem.AlignedByteOffset:elem.AlignedByteOffset + elem.size()]
+            vertex[elem.name] = elem.decode(data)
+        return vertex
+
+    def __eq__(self, other):
+        return self.elems == other.elems
+
+#### Narknon modification    
+class InputLayoutVB2(object):
+    def __init__(self, custom_prop=[]):
+        self.elems = collections.OrderedDict()
+        for item in custom_prop:
+            elem = InputLayoutVB2Element(item)
+            self.elems[elem.name] = elem
+
+    def serialise(self):
+        return [x.to_dict() for x in self.elems.values()]
+
+    def to_string(self):
+        ret = ''
+        for i, elem in enumerate(self.elems.values()):
+            ret += 'element[%i]:\n' % i
+            ret += elem.to_string()
+        return ret
+
+    def parse_element(self, f):
+        elem = InputLayoutVB2Element(f)
+        self.elems[elem.name] = elem
+
+    def __iter__(self):
+        return iter(self.elems.values())
+
+    def __getitem__(self, semantic):
+        return self.elems[semantic]
+
+    def encode(self, vertex, stride):
+        buf = bytearray(stride)
+
+        for semantic, data in vertex.items():
+            if semantic.startswith('~'):
+                continue
+            elem = self.elems[semantic]
+            data = elem.encode(data)
+            buf[elem.AlignedByteOffset:elem.AlignedByteOffset + len(data)] = data
+
+        assert(len(buf) == stridevb2)
         return buf
 
     def decode(self, buf):
@@ -496,7 +660,7 @@ class VertexBufferGroup(object):
     # default values are only evaluated once on file load
     def __init__(self, files=None, layout=None, load_vertices=True):
         self.vertices = []
-        self.layout = layout and layout or InputLayout()
+        self.layout = layout and layout or InputLayoutVB0() and InputLayoutVB2()
         self.first = 0
         self.vertex_count = 0
         self.topology = 'trianglelist'
@@ -710,7 +874,7 @@ def load_3dmigoto_mesh_bin(operator, vb_paths, ib_paths, pose_path):
     vb_bin_path, vb_txt_path = vb_paths[0]
     ib_bin_path, ib_txt_path = ib_paths[0]
 
-    vb = VertexBufferGroup(vb_txt_path, load_vertices=False)
+    vb0, vb2 = VertexBufferGroup(vb_txt_path, load_vertices=False)
     vb.parse_vb_bin(open(vb_bin_path, 'rb'))
 
     ib = None
@@ -727,7 +891,7 @@ def load_3dmigoto_mesh(operator, paths):
     if use_bin[0]:
         return load_3dmigoto_mesh_bin(operator, vb_paths, ib_paths, pose_path)
 
-    vb = VertexBufferGroup(vb_paths[0])
+    vb0, vb2 = VertexBufferGroup(vb_paths[0])
     # Merge additional vertex buffers for meshes split over multiple draw calls:
     for vb_path in vb_paths[1:]:
         tmp = VertexBufferGroup(vb_path)
@@ -749,7 +913,7 @@ def load_3dmigoto_mesh(operator, paths):
             tmp = IndexBuffer(open(ib_path, 'r'))
             ib.merge(tmp)
 
-    return vb, ib, os.path.basename(vb_paths[0][0]), pose_path
+    return vb0, vb2, ib, os.path.basename(vb_paths[0][0]), pose_path
 
 def import_normals_step1(mesh, data):
 
@@ -889,17 +1053,17 @@ def import_faces_from_ib(mesh, ib):
     mesh.polygons.foreach_set('loop_start', [x*3 for x in range(len(ib.faces))])
     mesh.polygons.foreach_set('loop_total', [3] * len(ib.faces))
 
-def import_faces_from_vb(mesh, vb):
+def import_faces_from_vb0(mesh, vb0):
     # Only lightly tested
-    num_faces = len(vb.vertices) // 3
+    num_faces = len(vb0.vertices) // 3
     mesh.loops.add(num_faces * 3)
     mesh.polygons.add(num_faces)
     mesh.loops.foreach_set('vertex_index', [x for x in range(num_faces * 3)])
     mesh.polygons.foreach_set('loop_start', [x*3 for x in range(num_faces)])
     mesh.polygons.foreach_set('loop_total', [3] * num_faces)
 
-def import_vertices(mesh, vb):
-    mesh.vertices.add(len(vb.vertices))
+def import_vertices(mesh, vb0, vb2):
+    mesh.vertices.add(len(vb0.vertices))
 
     seen_offsets = set()
     blend_indices = {}
@@ -908,11 +1072,11 @@ def import_vertices(mesh, vb):
     vertex_layers = {}
     use_normals = False
 
-    for elem in vb.layout:
+    for elem in vb0.layout:
         if elem.InputSlotClass != 'per-vertex':
             continue
 
-        if elem.InputSlot not in vb.slots:
+        if elem.InputSlot not in vb0.slots:
             # UE4 known to proclaim it has attributes in all the slots in the
             # layout description, but only ends up using two (and one of those
             # is per-instance data)
@@ -941,7 +1105,7 @@ def import_vertices(mesh, vb):
             continue
         seen_offsets.add((elem.InputSlot, elem.AlignedByteOffset))
 
-        data = tuple( x[elem.name] for x in vb.vertices )
+        data = tuple( x[elem.name] for x in vb0.vertices )
         if translated_elem_name == 'POSITION':
             # Ensure positions are 3-dimensional:
             if len(data[0]) == 4:
@@ -1015,7 +1179,7 @@ def import_3dmigoto(operator, context, paths, merge_meshes=True, **kwargs):
         return obj
 
 def import_3dmigoto_vb_ib(operator, context, paths, flip_texcoord_v=True, axis_forward='-Z', axis_up='Y', pose_cb_off=[0,0], pose_cb_step=1):
-    vb, ib, name, pose_path = load_3dmigoto_mesh(operator, paths)
+    vb0, vb2, ib, name, pose_path = load_3dmigoto_mesh(operator, paths)
 
     mesh = bpy.data.meshes.new(name)
     obj = bpy.data.objects.new(mesh.name, mesh)
@@ -1025,10 +1189,14 @@ def import_3dmigoto_vb_ib(operator, context, paths, flip_texcoord_v=True, axis_f
 
     # Attach the vertex buffer layout to the object for later exporting. Can't
     # seem to retrieve this if attached to the mesh - to_mesh() doesn't copy it:
-    for raw_vb in vb.vbs:
-        obj['3DMigoto:VB%iLayout' % raw_vb.idx] = vb.layout.serialise()
-        obj['3DMigoto:VB%iStride' % raw_vb.idx] = raw_vb.stride
-    obj['3DMigoto:FirstVertex'] = vb.first
+    for raw_vb in vb0.vbs:
+        obj['3DMigoto:VB0Layout' % raw_vb0.idx] = vb0.layout.serialise()
+        obj['3DMigoto:VB0Stride' % raw_vb0.idx] = raw_vb0.stride
+    obj['3DMigoto:FirstVertex'] = vb0.first
+    
+    for raw_vb in vb2.vbs:
+        obj['3DMigoto:VB2Layout' % raw_vb2.idx] = vb2.layout.serialise()
+        obj['3DMigoto:VB2Stride' % raw_vb2.idx] = raw_vb2.stride
 
     if ib is not None:
         import_faces_from_ib(mesh, ib)
@@ -1036,9 +1204,9 @@ def import_3dmigoto_vb_ib(operator, context, paths, flip_texcoord_v=True, axis_f
         obj['3DMigoto:IBFormat'] = ib.format
         obj['3DMigoto:FirstIndex'] = ib.first
     else:
-        import_faces_from_vb(mesh, vb)
+        import_faces_from_vb(mesh, vb0)
 
-    (blend_indices, blend_weights, texcoords, vertex_layers, use_normals) = import_vertices(mesh, vb)
+    (blend_indices, blend_weights, texcoords, vertex_layers, use_normals) = import_vertices(mesh, vb0, vb2)
 
     import_uv_layers(mesh, obj, texcoords, flip_texcoord_v)
 
@@ -1162,21 +1330,21 @@ def blender_vertex_to_3dmigoto_vertex(mesh, obj, blender_loop_vertex, layout, te
 
     return vertex
 
-def write_fmt_filevb1(f, vb, ib):
-    f.write('stride: %i\n' % vb.layout.stride)
-    f.write('topology: %s\n' % vb.topology)
+def write_fmt_filevb0(f, vb0, ib):
+    f.write('stride: %i\n' % vb0.layout.stride)
+    f.write('topology: %s\n' % vb0.topology)
     if ib is not None:
         f.write('format: %s\n' % ib.format)
-    f.write(vb.layout.to_string())
+    f.write(vb0.layout.to_string())
     
-def write_fmt_filevb2(f, vb, ib):
-    f.write('stride: %i\n' % vb.layout.stride)
-    f.write('topology: %s\n' % vb.topology)
+def write_fmt_filevb2(f, vb2, ib):
+    f.write('stride: %i\n' % vb2.layout.stride)
+    f.write('topology: %s\n' % vb2.topology)
     if ib is not None:
         f.write('format: %s\n' % ib.format)
-    f.write(vb.layout.to_string())
+    f.write(vb2.layout.to_string())
 
-def export_3dmigotovb1(operator, context, vb_path, ib_path, fmt_path):
+def export_3dmigotovb0(operator, context, vb_path, ib_path, fmt_path):
     obj = context.object
 
     if obj is None:
@@ -1184,7 +1352,7 @@ def export_3dmigotovb1(operator, context, vb_path, ib_path, fmt_path):
 
     # FIXME: Per-vertex buffer strides
     stride = obj['3DMigoto:VB0Stride']
-    layout = InputLayout(obj['3DMigoto:VB0Layout'], stride=stride)
+    layout = InputLayoutVB0(obj['3DMigoto:VB0Layout'], stride=stride)
     if hasattr(context, "evaluated_depsgraph_get"): # 2.80
         mesh = obj.evaluated_get(context.evaluated_depsgraph_get()).to_mesh()
     else: # 2.79
@@ -1239,14 +1407,14 @@ def export_3dmigotovb1(operator, context, vb_path, ib_path, fmt_path):
         if ib is not None:
             ib.append(face)
 
-    vb = VertexBufferGroup(layout=layout)
+    vb0 = VertexBufferGroup(layout=layout)
     for vertex in indexed_vertices:
-        vb.append(vertex)
+        vb0.append(vertex)
 
     vgmaps = {k[15:]:keys_to_ints(v) for k,v in obj.items() if k.startswith('3DMigoto:VGMap:')}
 
     if '' not in vgmaps:
-        vb.write(open(vb_path, 'wb'), operator=operator)
+        vb0.write(open(vb_path, 'wb'), operator=operator)
 
     base, ext = os.path.splitext(vb_path)
     for (suffix, vgmap) in vgmaps.items():
@@ -1255,9 +1423,9 @@ def export_3dmigotovb1(operator, context, vb_path, ib_path, fmt_path):
             path = '%s-%s%s' % (base, suffix, ext)
         vgmap_path = os.path.splitext(path)[0] + '.vgmap'
         print('Exporting %s...' % path)
-        vb.remap_blendindices(obj, vgmap)
-        vb.write(open(path, 'wb'), operator=operator)
-        vb.revert_blendindices_remap()
+        vb0.remap_blendindices(obj, vgmap)
+        vb0.write(open(path, 'wb'), operator=operator)
+        vb0.revert_blendindices_remap()
         sorted_vgmap = collections.OrderedDict(sorted(vgmap.items(), key=lambda x:x[1]))
         json.dump(sorted_vgmap, open(vgmap_path, 'w'), indent=2)
 
@@ -1265,7 +1433,7 @@ def export_3dmigotovb1(operator, context, vb_path, ib_path, fmt_path):
         ib.write(open(ib_path, 'wb'), operator=operator)
 
     # Write format reference file
-    write_fmt_filevb1(open(fmt_path, 'w'), vb, ib)
+    write_fmt_filevb0(open(fmt_path, 'w'), vb0, ib)
 
 #### Attempt to add second vb export
 
@@ -1277,7 +1445,7 @@ def export_3dmigotovb2(operator, context, vb_path, ib_path, fmt_path):
 
     # FIXME: Per-vertex buffer strides
     stride = obj['3DMigoto:VB2Stride']
-    layout = InputLayout(obj['3DMigoto:VB2Layout'], stride=stride)
+    layout = InputLayoutVB2(obj['3DMigoto:VB2Layout'], stride=stride)
     if hasattr(context, "evaluated_depsgraph_get"): # 2.80
         mesh = obj.evaluated_get(context.evaluated_depsgraph_get()).to_mesh()
     else: # 2.79
@@ -1332,14 +1500,14 @@ def export_3dmigotovb2(operator, context, vb_path, ib_path, fmt_path):
         if ib is not None:
             ib.append(face)
 
-    vb = VertexBufferGroup(layout=layout)
+    vb2 = VertexBufferGroup(layout=layout)
     for vertex in indexed_vertices:
-        vb.append(vertex)
+        vb2.append(vertex)
 
     vgmaps = {k[15:]:keys_to_ints(v) for k,v in obj.items() if k.startswith('3DMigoto:VGMap:')}
 
     if '' not in vgmaps:
-        vb.write(open(vb_path, 'wb'), operator=operator)
+        vb2.write(open(vb_path, 'wb'), operator=operator)
 
     base, ext = os.path.splitext(vb_path)
     for (suffix, vgmap) in vgmaps.items():
@@ -1348,9 +1516,9 @@ def export_3dmigotovb2(operator, context, vb_path, ib_path, fmt_path):
             path = '%s-%s%s' % (base, suffix, ext)
         vgmap_path = os.path.splitext(path)[0] + '.vgmap'
         print('Exporting %s...' % path)
-        vb.remap_blendindices(obj, vgmap)
-        vb.write(open(path, 'wb'), operator=operator)
-        vb.revert_blendindices_remap()
+        vb2.remap_blendindices(obj, vgmap)
+        vb2.write(open(path, 'wb'), operator=operator)
+        vb2.revert_blendindices_remap()
         sorted_vgmap = collections.OrderedDict(sorted(vgmap.items(), key=lambda x:x[1]))
         json.dump(sorted_vgmap, open(vgmap_path, 'w'), indent=2)
 
@@ -1358,7 +1526,7 @@ def export_3dmigotovb2(operator, context, vb_path, ib_path, fmt_path):
         ib.write(open(ib_path, 'wb'), operator=operator)
 
     # Write format reference file
-    write_fmt_filevb2(open(fmt_path, 'w'), vb, ib)  
+    write_fmt_filevb2(open(fmt_path, 'w'), vb2, ib)  
 
 @orientation_helper(axis_forward='-Z', axis_up='Y')
 class Import7r3DMigotoFrameAnalysis(bpy.types.Operator, ImportHelper, IOOBJOrientationHelper):
@@ -1631,7 +1799,7 @@ class Export7r3DMigoto(bpy.types.Operator, ExportHelper):
 
             # FIXME: ExportHelper will check for overwriting vb_path, but not ib_path
 
-            export_3dmigotovb1(self, context, vb_path, ib_path, fmt_path)
+            export_3dmigotovb0(self, context, vb_path, ib_path, fmt_path)
             export_3dmigotovb2(self, context, vb_path, ib_path, fmt_path)
         except Fatal as e:
             self.report({'ERROR'}, str(e))
