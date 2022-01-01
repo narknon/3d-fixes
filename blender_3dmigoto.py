@@ -1162,7 +1162,14 @@ def blender_vertex_to_3dmigoto_vertex(mesh, obj, blender_loop_vertex, layout, te
 
     return vertex
 
-def write_fmt_file(f, vb, ib):
+def write_fmt_filevb1(f, vb, ib):
+    f.write('stride: %i\n' % vb.layout.stride)
+    f.write('topology: %s\n' % vb.topology)
+    if ib is not None:
+        f.write('format: %s\n' % ib.format)
+    f.write(vb.layout.to_string())
+    
+def write_fmt_filevb2(f, vb, ib):
     f.write('stride: %i\n' % vb.layout.stride)
     f.write('topology: %s\n' % vb.topology)
     if ib is not None:
@@ -1258,7 +1265,7 @@ def export_3dmigotovb1(operator, context, vb_path, ib_path, fmt_path):
         ib.write(open(ib_path, 'wb'), operator=operator)
 
     # Write format reference file
-    write_fmt_file(open(fmt_path, 'w'), vb, ib)
+    write_fmt_filevb1(open(fmt_path, 'w'), vb, ib)
 
 #### Attempt to add second vb export
 
@@ -1351,7 +1358,7 @@ def export_3dmigotovb2(operator, context, vb_path, ib_path, fmt_path):
         ib.write(open(ib_path, 'wb'), operator=operator)
 
     # Write format reference file
-    write_fmt_file(open(fmt_path, 'w'), vb, ib)  
+    write_fmt_filevb2(open(fmt_path, 'w'), vb, ib)  
 
 @orientation_helper(axis_forward='-Z', axis_up='Y')
 class Import7r3DMigotoFrameAnalysis(bpy.types.Operator, ImportHelper, IOOBJOrientationHelper):
