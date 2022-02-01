@@ -212,8 +212,8 @@ def EncoderDecoder(fmt):
         return (lambda data: numpy.around((numpy.fromiter(data, numpy.float32) * 255.0)).astype(numpy.uint8).tobytes(),
                 lambda data: (numpy.frombuffer(data, numpy.uint8) / 255.0).tolist())
     if unorm10a2_pattern.match(fmt):
-        return (lambda data: numpy.fromiter([pack_unorm10a2(data[i:i+4]) for i in range(0, len(data), 4)], numpy.uint32).tobytes(),
-                lambda data: [c for c in unpack_unorm10a2(v) for v in numpy.frombuffer(data, numpy.uint32).tolist()])
+        return (lambda data: numpy.fromiter([pack_unorm10a2(data)], numpy.uint32).tobytes(),
+                lambda data: unpack_unorm10a2(numpy.frombuffer(data, numpy.uint32).tolist()))
     if snorm16_pattern.match(fmt):
         return (lambda data: numpy.around((numpy.fromiter(data, numpy.float32) * 32767.0)).astype(numpy.int16).tobytes(),
                 lambda data: (numpy.frombuffer(data, numpy.int16) / 32767.0).tolist())
