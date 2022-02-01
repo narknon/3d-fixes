@@ -172,6 +172,7 @@ s16_pattern = re.compile(r'''(?:DXGI_FORMAT_)?(?:[RGBAD]16)+_SINT''')
 s8_pattern = re.compile(r'''(?:DXGI_FORMAT_)?(?:[RGBAD]8)+_SINT''')
 unorm16_pattern = re.compile(r'''(?:DXGI_FORMAT_)?(?:[RGBAD]16)+_UNORM''')
 unorm8_pattern = re.compile(r'''(?:DXGI_FORMAT_)?(?:[RGBAD]8)+_UNORM''')
+unorm10a2_pattern = re.compile(r'''(?:DXGI_FORMAT_)?(?:[RGB]10)+A2_UNORM''')
 snorm16_pattern = re.compile(r'''(?:DXGI_FORMAT_)?(?:[RGBAD]16)+_SNORM''')
 snorm8_pattern = re.compile(r'''(?:DXGI_FORMAT_)?(?:[RGBAD]8)+_SNORM''')
 
@@ -210,6 +211,9 @@ def EncoderDecoder(fmt):
     if unorm8_pattern.match(fmt):
         return (lambda data: numpy.around((numpy.fromiter(data, numpy.float32) * 255.0)).astype(numpy.uint8).tobytes(),
                 lambda data: (numpy.frombuffer(data, numpy.uint8) / 255.0).tolist())
+    if unorm10a2_pattern.match(fmt):
+        return (lambda data: numpy.fromiter([pack_unorm10a2(data[i:i+4]) for i in range(0, len(data), 4)], numpy.uint32).tobytes(),
+                lambda data: [c for c in unpack_unorm10a2(v) for v in numpy.frombuffer(data, numpy.uint32).tolist()])
     if snorm16_pattern.match(fmt):
         return (lambda data: numpy.around((numpy.fromiter(data, numpy.float32) * 32767.0)).astype(numpy.int16).tobytes(),
                 lambda data: (numpy.frombuffer(data, numpy.int16) / 32767.0).tolist())
@@ -218,6 +222,22 @@ def EncoderDecoder(fmt):
                 lambda data: (numpy.frombuffer(data, numpy.int8) / 127.0).tolist())
 
     raise Fatal('File uses an unsupported DXGI Format: %s' % fmt)
+
+def pack_unorm10a2(components):
+    r, g, b, a = components
+    value  =  round(r * 1023.0)
+    value |= (round(g * 1023.0) << 10)
+    value |= (round(b * 1023.0) << 20)
+    value |= (round(a *    3.0) << 30)
+    return value
+
+def unpack_unorm10a2(value):
+    rgb_mask = 0b1111111111 # 10-bit mask
+    r = ( value        & rgb_mask) / 1023.0
+    g = ((value >> 10) & rgb_mask) / 1023.0
+    b = ((value >> 20) & rgb_mask) / 1023.0
+    a = ( value >> 30            ) /    3.0 # 2-bit alpha
+    return [r, g, b, a]
 
 components_pattern = re.compile(r'''(?<![0-9])[0-9]+(?![0-9])''')
 def format_components(fmt):
@@ -479,7 +499,12 @@ class IndividualVertexBuffer(object):
     def parse_vertex_element(self, match):
         fields = match.group('data').split(',')
 
-        if self.layout[match.group('semantic')].Format.endswith('INT'):
+        format = self.layout[match.group('semantic')].Format
+        # R10G10B10A2_UNORM values are written as a single hex string, so it
+        # must be converted to an int before unpacking.
+        if format.endswith('R10G10B10A2_UNORM'):
+            return tuple(unpack_unorm10a2(int(fields[0], 16)))
+        elif format.endswith('INT'):
             return tuple(map(int, fields))
 
         return tuple(map(float, fields))
