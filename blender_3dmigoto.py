@@ -501,9 +501,11 @@ class IndividualVertexBuffer(object):
 
         format = self.layout[match.group('semantic')].Format
         # R10G10B10A2_UNORM values are written as a single hex string, so it
-        # must be converted to an int before unpacking.
+        # must be converted to little endian, then to an int, before unpacking.
         if format.endswith('R10G10B10A2_UNORM'):
-            return tuple(unpack_unorm10a2(int(fields[0], 16)))
+            b = bytearray.fromhex(fields[0])
+            b.reverse()
+            return tuple(unpack_unorm10a2(int(b.hex(), 16)))
         elif format.endswith('INT'):
             return tuple(map(int, fields))
 
