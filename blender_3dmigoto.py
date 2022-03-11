@@ -1060,12 +1060,12 @@ def blender_vertex_to_3dmigoto_vertex(mesh, obj, blender_loop_vertex, layout, te
                 vertex[elem.name] = list(mesh.vertex_colors[elem.name+'.RGB'].data[blender_loop_vertex.index].color)[:3] + \
                                         [mesh.vertex_colors[elem.name+'.A'].data[blender_loop_vertex.index].color[0]]
         elif elem.name == 'NORMAL':
-            vertex[elem.name] = elem.pad(list(blender_loop_vertex.normal), 0.0)
+            vertex[elem.name] = elem.pad(list(blender_loop_vertex.normal), blender_loop_vertex.bitangent_sign)
         elif elem.name.startswith('TANGENT'):
             # DOAXVV has +1/-1 in the 4th component. Not positive what this is,
             # but guessing maybe the bitangent sign? Not even sure it is used...
             # FIXME: Other games
-            vertex[elem.name] = elem.pad(list(blender_loop_vertex.tangent), blender_loop_vertex.bitangent_sign)
+            vertex[elem.name] = elem.pad(list(blender_loop_vertex.tangent), 0.0)
         elif elem.name.startswith('BINORMAL'):
             # Some DOA6 meshes (skirts) use BINORMAL, but I'm not certain it is
             # actually the binormal. These meshes are weird though, since they
