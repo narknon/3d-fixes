@@ -716,10 +716,11 @@ def load_3dmigoto_mesh(operator, paths):
 def import_normals_step1(mesh, data):
     # Ensure normals are 3-dimensional:
     # XXX: Assertion triggers in DOA6
-    #if len(data[0]) == 4:
-     #   if [x[3] for x in data] != [0.0]*len(data):
-      #      raise Fatal('Normals are 4D')
-    normals = [(x[0], x[1], x[2], x[3]) for x in data]
+    # if len(data[0]) == 4:
+       # if [x[3] for x in data] != [0.0]*len(data):
+           # for binormals_sign = [(x[3]) for x in data)
+                # continue
+    normals = [(x[0], x[1], x[2]) for x in data]
 
     # To make sure the normals don't get lost by Blender's edit mode,
     # or mesh.update() we need to set custom normals in the loops, not
@@ -1060,12 +1061,12 @@ def blender_vertex_to_3dmigoto_vertex(mesh, obj, blender_loop_vertex, layout, te
                 vertex[elem.name] = list(mesh.vertex_colors[elem.name+'.RGB'].data[blender_loop_vertex.index].color)[:3] + \
                                         [mesh.vertex_colors[elem.name+'.A'].data[blender_loop_vertex.index].color[0]]
         elif elem.name == 'NORMAL':
-            vertex[elem.name] = elem.pad(list(blender_loop_vertex.normal), blender_loop_vertex.bitangent_sign)
+            vertex[elem.name] = elem.pad(list(blender_loop_vertex.normal), 0.0)
         elif elem.name.startswith('TANGENT'):
             # DOAXVV has +1/-1 in the 4th component. Not positive what this is,
             # but guessing maybe the bitangent sign? Not even sure it is used...
             # FIXME: Other games
-            vertex[elem.name] = elem.pad(list(blender_loop_vertex.tangent), 0.0)
+            vertex[elem.name] = elem.pad(list(blender_loop_vertex.tangent), blender_loop_vertex.bitangent_sign)
         elif elem.name.startswith('BINORMAL'):
             # Some DOA6 meshes (skirts) use BINORMAL, but I'm not certain it is
             # actually the binormal. These meshes are weird though, since they
@@ -1073,12 +1074,12 @@ def blender_vertex_to_3dmigoto_vertex(mesh, obj, blender_loop_vertex, layout, te
             # we can really deal with at all. Therefore, the below is untested,
             # FIXME: So find a mesh where this is actually the binormal,
             # uncomment the below code and test.
-            # normal = blender_loop_vertex.normal
-            # tangent = blender_loop_vertex.tangent
-            # binormal = numpy.cross(normal, tangent)
+            normal = blender_loop_vertex.normal
+            tangent = blender_loop_vertex.tangent
+            binormal = numpy.cross(normal, tangent)
             # XXX: Does the binormal need to be normalised to a unit vector?
-            # binormal = binormal / numpy.linalg.norm(binormal)
-            # vertex[elem.name] = elem.pad(list(binormal), 0.0)
+            binormal = binormal / numpy.linalg.norm(binormal)
+            vertex[elem.name] = elem.pad(list(binormal), 0.0)
             pass
         elif elem.name.startswith('BLENDINDICES'):
             i = elem.SemanticIndex * 4
@@ -1136,7 +1137,7 @@ def export_3dmigoto(operator, context, vb_path, ib_path, fmt_path):
     mesh_triangulate(mesh)
 
     indices = [ l.vertex_index for l in mesh.loops ]
-    faces = [ indices[i:i+3] for i in range(0, len(indices), 3) ]
+    faces = [ (reversed(indices[i:i+3] for i in range(0, len(indices), 3)) ]
     try:
         ib_format = obj['3DMigoto:IBFormat']
     except KeyError:
