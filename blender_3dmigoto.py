@@ -1052,7 +1052,12 @@ def blender_vertex_to_3dmigoto_vertex(mesh, obj, blender_loop_vertex, layout, te
                 vertex[elem.name] = list(blender_vertex.undeformed_co) + \
                                         [mesh.vertex_layers_float['POSITION.w'].data[blender_loop_vertex.vertex_index].value]
             else:
-                vertex[elem.name] = elem.pad(list(blender_vertex.undeformed_co), 1.0)
+                x = list(blender_vertex.undeformed_co)
+                for i in range(len(x)):
+                    x = [-a for a in x]
+                        if (i%3==2):
+                         x[i] = -x[i]
+                vertex[elem.name] = elem.pad(x, 1.0)
         elif elem.name.startswith('COLOR'):
             if elem.name in mesh.vertex_colors:
                 vertex[elem.name] = elem.clip(list(mesh.vertex_colors[elem.name].data[blender_loop_vertex.index].color))
