@@ -224,7 +224,7 @@ def EncoderDecoder(fmt):
 
 def pack_unorm10a2(components):
     r, g, b = numpy.around(numpy.fromiter(components[0:3], numpy.float32) * 1023.0).astype(numpy.uint32).tolist()
-    a,      = numpy.around(numpy.fromiter(components[3:4], numpy.float32) *    3.0).astype(numpy.uint32).tolist()
+    a,      = numpy.around(numpy.fromiter(components[3:4], numpy.float32) *    8.0).astype(numpy.uint32).tolist()
     rgb_mask = 0b1111111111 # 10-bit mask
     value  = ( r & rgb_mask       )
     value |= ((g & rgb_mask) << 10)
@@ -240,7 +240,7 @@ def unpack_unorm10a2(data):
     b = ((value >> 20) & rgb_mask)
     a = ( value >> 30            ) # 2-bit alpha
     r, g, b = (numpy.fromiter([r, g, b], numpy.uint32) / 1023.0).astype(numpy.float32).tolist()
-    a,      = (numpy.fromiter([a      ], numpy.uint32) /    3.0).astype(numpy.float32).tolist()
+    a,      = (numpy.fromiter([a      ], numpy.uint32) /    8.0).astype(numpy.float32).tolist()
     return [r, g, b, a]
 
 components_pattern = re.compile(r'''(?<![0-9])[0-9]+(?![0-9])''')
@@ -716,11 +716,12 @@ def load_3dmigoto_mesh(operator, paths):
 def import_normals_step1(mesh, data):
     # Ensure normals are 3-dimensional:
     # XXX: Assertion triggers in DOA6
-    # if len(data[0]) == 4:
-       # if [x[3] for x in data] != [0.0]*len(data):
-           # for binormals_sign = [(x[3]) for x in data)
-                # continue
+    if len(data[0]) == 4:
+       if [x[3] for x in data] != [0.0]*len(data):
+            print("n=w")
+                continue
     normals = [(x[0], x[1], x[2]) for x in data]
+    # binormalssign = [(x[3]) for x in data)
 
     # To make sure the normals don't get lost by Blender's edit mode,
     # or mesh.update() we need to set custom normals in the loops, not
@@ -939,9 +940,9 @@ def import_vertices(mesh, vb):
         elif translated_elem_name in ('TANGENT', 'BINORMAL'):
         #    # XXX: loops.tangent is read only. Not positive how to handle
         #    # this, or if we should just calculate it when re-exporting.
-        #    for l in mesh.loops:
-        #        assert(data[l.vertex_index][3] in (1.0, -1.0))
-        #        l.tangent[:] = data[l.vertex_index][0:3]
+           # for l in mesh.loops:
+               # assert(data[l.vertex_index][3] in (1.0, -1.0))
+               # l.tangent[:] = data[l.vertex_index][0:3]
             print('NOTICE: Skipping import of %s in favour of recalculating on export' % elem.name)
         elif translated_elem_name.startswith('BLENDINDICES'):
             blend_indices[elem.SemanticIndex] = data
@@ -1053,7 +1054,13 @@ def blender_vertex_to_3dmigoto_vertex(mesh, obj, blender_loop_vertex, layout, te
                 vertex[elem.name] = list(blender_vertex.undeformed_co) + \
                                         [mesh.vertex_layers_float['POSITION.w'].data[blender_loop_vertex.vertex_index].value]
             else:
-                vertex[elem.name] = elem.pad(list(blender_vertex.undeformed_co), 1.0)
+                x = list(blender_vertex.undeformed_co)
+                # for i in range(len(x)):
+                    # x = [-a for a in x]
+                        #if (i%3==0):
+                         
+                         #x[i] = -x[i]
+                vertex[elem.name] = elem.pad(x, 1.0)
         elif elem.name.startswith('COLOR'):
             if elem.name in mesh.vertex_colors:
                 vertex[elem.name] = elem.clip(list(mesh.vertex_colors[elem.name].data[blender_loop_vertex.index].color))
@@ -1061,7 +1068,13 @@ def blender_vertex_to_3dmigoto_vertex(mesh, obj, blender_loop_vertex, layout, te
                 vertex[elem.name] = list(mesh.vertex_colors[elem.name+'.RGB'].data[blender_loop_vertex.index].color)[:3] + \
                                         [mesh.vertex_colors[elem.name+'.A'].data[blender_loop_vertex.index].color[0]]
         elif elem.name == 'NORMAL':
-            vertex[elem.name] = elem.pad(list(blender_loop_vertex.normal), 0.0)
+                # n = list(blender_loop_vertex.normal)
+                # for i in range(len(n)):
+                    # n = [-a for a in n]
+                        #if (i%3==0):
+                         
+                         #n[i] = -n[i]
+                    vertex[elem.name] = elem.pad(list(blender_loop_vertex.normal), 0.0)
         elif elem.name.startswith('TANGENT'):
             # DOAXVV has +1/-1 in the 4th component. Not positive what this is,
             # but guessing maybe the bitangent sign? Not even sure it is used...
@@ -1074,12 +1087,12 @@ def blender_vertex_to_3dmigoto_vertex(mesh, obj, blender_loop_vertex, layout, te
             # we can really deal with at all. Therefore, the below is untested,
             # FIXME: So find a mesh where this is actually the binormal,
             # uncomment the below code and test.
-            normal = blender_loop_vertex.normal
-            tangent = blender_loop_vertex.tangent
-            binormal = numpy.cross(normal, tangent)
+            # normal = blender_loop_vertex.normal
+            # tangent = blender_loop_vertex.tangent
+            # binormal = numpy.cross(normal, tangent)
             # XXX: Does the binormal need to be normalised to a unit vector?
-            binormal = binormal / numpy.linalg.norm(binormal)
-            vertex[elem.name] = elem.pad(list(binormal), 0.0)
+            # binormal = binormal / numpy.linalg.norm(binormal)
+            # vertex[elem.name] = elem.pad(list(binormal), 0.0)
             pass
         elif elem.name.startswith('BLENDINDICES'):
             i = elem.SemanticIndex * 4
@@ -1137,7 +1150,7 @@ def export_3dmigoto(operator, context, vb_path, ib_path, fmt_path):
     mesh_triangulate(mesh)
 
     indices = [ l.vertex_index for l in mesh.loops ]
-    faces = [ (reversed(indices[i:i+3] for i in range(0, len(indices), 3)) ]
+    faces = [ indices[i:i+3] for i in range(0, len(indices), 3) ]
     try:
         ib_format = obj['3DMigoto:IBFormat']
     except KeyError:
@@ -1212,7 +1225,7 @@ def export_3dmigoto(operator, context, vb_path, ib_path, fmt_path):
     # Write format reference file
     write_fmt_file(open(fmt_path, 'w'), vb, ib)
 
-@orientation_helper(axis_forward='-Z', axis_up='Y')
+@orientation_helper(axis_forward='X', axis_up='-Y')
 class Import3DMigotoFrameAnalysis(bpy.types.Operator, ImportHelper, IOOBJOrientationHelper):
     """Import a mesh dumped with 3DMigoto's frame analysis"""
     bl_idname = "import_mesh.migoto_frame_analysis"
@@ -1356,7 +1369,7 @@ def import_3dmigoto_raw_buffers(operator, context, vb_fmt_path, ib_fmt_path, vb_
     if obj and vgmap_path:
         apply_vgmap(operator, context, targets=obj, filepath=vgmap_path, rename=True, cleanup=True)
 
-@orientation_helper(axis_forward='-Z', axis_up='Y')
+@orientation_helper(axis_forward='X', axis_up='-Y')
 class Import3DMigotoRaw(bpy.types.Operator, ImportHelper, IOOBJOrientationHelper):
     """Import raw 3DMigoto vertex and index buffers"""
     bl_idname = "import_mesh.migoto_raw_buffers"
@@ -1692,7 +1705,7 @@ def import_pose(operator, context, filepath=None, limit_bones_to_vertex_groups=T
         # Hide pose object if it was applied to another object:
         hide_set(arm, True)
 
-@orientation_helper(axis_forward='-Z', axis_up='Y')
+@orientation_helper(axis_forward='X', axis_up='-Y')
 class Import3DMigotoPose(bpy.types.Operator, ImportHelper, IOOBJOrientationHelper):
     """Import a pose from a 3DMigoto constant buffer dump"""
     bl_idname = "armature.migoto_pose"
