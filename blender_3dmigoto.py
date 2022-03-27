@@ -719,7 +719,7 @@ def import_normals_step1(mesh, data):
     #if len(data[0]) == 4:
      #   if [x[3] for x in data] != [0.0]*len(data):
       #      raise Fatal('Normals are 4D')
-    normals = [(x[0], x[1], x[2], x[3]) for x in data]
+    normals = [(x[0], x[1], x[2]) for x in data]
 
     # To make sure the normals don't get lost by Blender's edit mode,
     # or mesh.update() we need to set custom normals in the loops, not
@@ -1060,7 +1060,7 @@ def blender_vertex_to_3dmigoto_vertex(mesh, obj, blender_loop_vertex, layout, te
                 vertex[elem.name] = list(mesh.vertex_colors[elem.name+'.RGB'].data[blender_loop_vertex.index].color)[:3] + \
                                         [mesh.vertex_colors[elem.name+'.A'].data[blender_loop_vertex.index].color[0]]
         elif elem.name == 'NORMAL':
-            vertex[elem.name] = elem.pad(list(blender_loop_vertex.normal), 0.0)
+            vertex[elem.name] = elem.pad(list(blender_loop_vertex.normal), 0.501960814)
         elif elem.name.startswith('TANGENT'):
             # DOAXVV has +1/-1 in the 4th component. Not positive what this is,
             # but guessing maybe the bitangent sign? Not even sure it is used...
